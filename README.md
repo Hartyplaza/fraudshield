@@ -44,6 +44,18 @@ Credit card fraud costs the global economy over $30 billion annually. The core c
 
 > PR-AUC is the primary metric for fraud detection. With extreme class imbalance, ROC-AUC is misleading — a random classifier scores 0.5 on ROC-AUC but only 0.0017 on PR-AUC.
 
+### Model Selection — Why XGBoost
+
+Random Forest achieved the best PR-AUC (0.8303) and lowest business cost (€1,372) in evaluation. However **XGBoost was selected as the production model** for the following reasons:
+
+- **Industry standard** — XGBoost is the most widely deployed algorithm for fraud detection in production financial systems
+- **Precision** — XGBoost with default threshold achieves higher precision (catching fewer false alarms per fraud caught) which matters at scale
+- **Speed** — XGBoost inference is significantly faster than Random Forest, critical for real-time transaction scoring at high volume
+- **Tunability** — `scale_pos_weight` gives direct control over the precision-recall tradeoff without resampling
+- **Interpretability** — XGBoost integrates natively with SHAP TreeExplainer for production-grade explainability
+
+Random Forest remains the strongest model by PR-AUC and cost metrics and would be the recommended choice if the primary objective is minimising total business cost in a lower-volume setting.
+
 ### Cost Analysis (FN = €100, FP = €1)
 
 | Model | Threshold | TP | FN | FP | Total Cost |
