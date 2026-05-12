@@ -780,7 +780,7 @@ elif page == "Model Performance":
         st.plotly_chart(fig, use_container_width=True)
 
     with col3:
-        st.markdown(f'<div class="section-card" style="height:360px"><p class="section-title">Leaderboard</p>',
+        st.markdown(f'<div class="section-card"><p class="section-title">Leaderboard</p>',
                     unsafe_allow_html=True)
         df_sorted = df_metrics.sort_values("PR-AUC", ascending=False)
         for i, (_, row) in enumerate(df_sorted.iterrows()):
