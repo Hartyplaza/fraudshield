@@ -148,34 +148,22 @@ def pcfg(title="", h=300):
     )
 
 
-@st.cache_resource
-@st.cache_resource
-def load_model():
-    import warnings
-    warnings.filterwarnings("ignore")
-    from sklearn.exceptions import InconsistentVersionWarning
-    warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
-    model_path     = os.path.join(os.path.dirname(__file__), '..', 'models', 'best_model_pipeline.pkl')
-    threshold_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'optimal_threshold.json')
-    threshold = 0.5
-    if os.path.exists(threshold_path):
-        with open(threshold_path) as f:
-            threshold = json.load(f).get('threshold', 0.5)
-    try:
-        model = joblib.load(model_path)
-        # Test compatibility
-        test = pd.DataFrame([{f'V{i}': 0.0 for i in range(1,29)}] )
-        test['Time'] = 0.0
-        test['Amount'] = 1.0
-        test = engineer_features(test)
-        model.predict_proba(test)
-        return model, threshold
-    except Exception:
-        return _retrain_model(model_path, threshold_path, threshold)
+def engineer_features(df):
+    df = df.copy()
+    df['hour']       = (df['Time'] // 3600) % 24
+    df['day']        = (df['Time'] // 86400).astype(int)
+    df['log_amount'] = np.log1p(df['Amount'])
+    df['amount_bin'] = pd.cut(
+        df['Amount'], bins=[0, 10, 50, 200, 1000, float('inf')],
+        labels=['micro', 'small', 'medium', 'large', 'xlarge'],
+        include_lowest=True
+    )
+    df['high_amount_night'] = ((df['Amount'] > 200) & (df['hour'] < 6)).astype(int)
+    df.drop(columns=['Time', 'Amount'], inplace=True)
+    return df
 
 
 def _retrain_model(model_path, threshold_path, threshold):
-    import pandas as pd
     from sklearn.pipeline import Pipeline
     from sklearn.compose import ColumnTransformer
     from sklearn.preprocessing import RobustScaler, OneHotEncoder
@@ -184,20 +172,16 @@ def _retrain_model(model_path, threshold_path, threshold):
     from sklearn.model_selection import train_test_split
     from imblearn.pipeline import Pipeline as ImbPipeline
     from imblearn.over_sampling import SMOTE
-
     data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw', 'creditcard.csv')
     if not os.path.exists(data_path):
-        st.error("Dataset not found for retraining. Please upload creditcard.csv to data/raw/")
+        st.error("Dataset not found for retraining.")
         st.stop()
-
     df = pd.read_csv(data_path)
     df = engineer_features(df)
     X  = df.drop(columns=['Class'])
     y  = df['Class']
-
     numeric_cols     = X.select_dtypes(include=['int64','float64']).columns.tolist()
     categorical_cols = X.select_dtypes(include=['object','category']).columns.tolist()
-
     preprocessor = ColumnTransformer([
         ('num', Pipeline([('imp', SimpleImputer(strategy='median')),
                           ('scl', RobustScaler())]), numeric_cols),
@@ -219,19 +203,28 @@ def _retrain_model(model_path, threshold_path, threshold):
     return pipeline, threshold
 
 
-def engineer_features(df):
-    df = df.copy()
-    df['hour']       = (df['Time'] // 3600) % 24
-    df['day']        = (df['Time'] // 86400).astype(int)
-    df['log_amount'] = np.log1p(df['Amount'])
-    df['amount_bin'] = pd.cut(
-        df['Amount'], bins=[0, 10, 50, 200, 1000, float('inf')],
-        labels=['micro', 'small', 'medium', 'large', 'xlarge'],
-        include_lowest=True
-    )
-    df['high_amount_night'] = ((df['Amount'] > 200) & (df['hour'] < 6)).astype(int)
-    df.drop(columns=['Time', 'Amount'], inplace=True)
-    return df
+@st.cache_resource
+def load_model():
+    import warnings
+    warnings.filterwarnings("ignore")
+    from sklearn.exceptions import InconsistentVersionWarning
+    warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+    model_path     = os.path.join(os.path.dirname(__file__), '..', 'models', 'best_model_pipeline.pkl')
+    threshold_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'optimal_threshold.json')
+    threshold = 0.5
+    if os.path.exists(threshold_path):
+        with open(threshold_path) as f:
+            threshold = json.load(f).get('threshold', 0.5)
+    try:
+        model = joblib.load(model_path)
+        test = pd.DataFrame([{f'V{i}': 0.0 for i in range(1,29)}])
+        test['Time'] = 0.0
+        test['Amount'] = 1.0
+        test = engineer_features(test)
+        model.predict_proba(test)
+        return model, threshold
+    except Exception:
+        return _retrain_model(model_path, threshold_path, threshold)
 
 
 try:
@@ -240,6 +233,7 @@ try:
 except Exception as e:
     model_loaded = False
     model_error  = str(e)
+    threshold    = 0.5
 
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
