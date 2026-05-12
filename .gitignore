@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.env
+venv/
+data/raw/
+data/processed/
+models/
+mlflow/
+.ipynb_checkpoints/
+.DS_Store
