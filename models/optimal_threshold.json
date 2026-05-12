@@ -1,0 +1,6 @@
+{
+  "threshold": 0.072,
+  "model": "XGBoost",
+  "cost_fn": 100,
+  "cost_fp": 1
+}
